@@ -29,7 +29,7 @@ type User = {
 };
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'catalog' | 'cart' | 'favorites' | 'profile' | 'orders'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'catalog' | 'cart' | 'favorites' | 'profile' | 'orders' | 'admin'>('home');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,13 +44,88 @@ const Index = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
+  const [showAdminProductDialog, setShowAdminProductDialog] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [adminProducts, setAdminProducts] = useState<Product[]>([]);
+  
+  const [productName, setProductName] = useState('');
+  const [productPrice, setProductPrice] = useState('');
+  const [productOldPrice, setProductOldPrice] = useState('');
+  const [productImage, setProductImage] = useState('');
+  const [productBadge, setProductBadge] = useState('');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('onlishop_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
+    const savedProducts = localStorage.getItem('onlishop_admin_products');
+    if (savedProducts) {
+      setAdminProducts(JSON.parse(savedProducts));
+    }
   }, []);
+
+  const isAdmin = user?.email === 'onlishop@mail.ru';
+
+  const allProducts = [...products, ...adminProducts];
+
+  const openAddProductDialog = () => {
+    setEditingProduct(null);
+    setProductName('');
+    setProductPrice('');
+    setProductOldPrice('');
+    setProductImage('');
+    setProductBadge('');
+    setShowAdminProductDialog(true);
+  };
+
+  const openEditProductDialog = (product: Product) => {
+    setEditingProduct(product);
+    setProductName(product.name);
+    setProductPrice(product.price.toString());
+    setProductOldPrice(product.oldPrice?.toString() || '');
+    setProductImage(product.image);
+    setProductBadge(product.badge || '');
+    setShowAdminProductDialog(true);
+  };
+
+  const saveProduct = () => {
+    if (!productName || !productPrice || !productImage) {
+      toast({ title: 'Ошибка', description: 'Заполните обязательные поля', variant: 'destructive' });
+      return;
+    }
+
+    const productData: Product = {
+      id: editingProduct?.id || Date.now(),
+      name: productName,
+      price: parseInt(productPrice),
+      oldPrice: productOldPrice ? parseInt(productOldPrice) : undefined,
+      image: productImage,
+      rating: editingProduct?.rating || 4.5,
+      reviews: editingProduct?.reviews || 0,
+      badge: productBadge || undefined,
+    };
+
+    let updatedProducts;
+    if (editingProduct) {
+      updatedProducts = adminProducts.map(p => p.id === editingProduct.id ? productData : p);
+      toast({ title: 'Товар обновлён!' });
+    } else {
+      updatedProducts = [...adminProducts, productData];
+      toast({ title: 'Товар добавлен!' });
+    }
+
+    setAdminProducts(updatedProducts);
+    localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
+    setShowAdminProductDialog(false);
+  };
+
+  const deleteProduct = (productId: number) => {
+    const updatedProducts = adminProducts.filter(p => p.id !== productId);
+    setAdminProducts(updatedProducts);
+    localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
+    toast({ title: 'Товар удалён' });
+  };
 
   const handleLogin = () => {
     if (!loginEmail || !loginPassword) {
@@ -697,6 +772,7 @@ const Index = () => {
               { id: 'favorites', label: 'Избранное', icon: 'Heart' },
               { id: 'profile', label: 'Профиль', icon: 'User' },
               { id: 'orders', label: 'Заказы', icon: 'Package' },
+              ...(isAdmin ? [{ id: 'admin', label: 'Админ-панель', icon: 'Settings' }] : []),
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -744,7 +820,7 @@ const Index = () => {
             <div>
               <h2 className="text-2xl font-bold mb-4">Популярные товары</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {products.map(renderProductCard)}
+                {allProducts.slice(0, 8).map(renderProductCard)}
               </div>
             </div>
           </div>
@@ -754,7 +830,7 @@ const Index = () => {
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold mb-6">Каталог товаров</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map(renderProductCard)}
+              {allProducts.map(renderProductCard)}
             </div>
           </div>
         )}
@@ -846,7 +922,7 @@ const Index = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {products.filter(p => favorites.includes(p.id)).map(renderProductCard)}
+                {allProducts.filter(p => favorites.includes(p.id)).map(renderProductCard)}
               </div>
             )}
           </div>
@@ -932,6 +1008,146 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {activeTab === 'admin' && isAdmin && (
+        <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold">Админ-панель</h2>
+              <Button variant="outline" onClick={() => setActiveTab('home')}>
+                <Icon name="X" size={18} className="mr-2" />
+                Закрыть
+              </Button>
+            </div>
+
+            <div className="grid gap-6 mb-6">
+              <Card className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold">Управление товарами</h3>
+                  <Button onClick={openAddProductDialog}>
+                    <Icon name="Plus" size={18} className="mr-2" />
+                    Добавить товар
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allProducts.map((product) => (
+                    <Card key={product.id} className="p-4">
+                      <img src={product.image} alt={product.name} className="w-full h-32 object-cover rounded mb-2" />
+                      <h4 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h4>
+                      <p className="text-lg font-bold mb-2">{product.price.toLocaleString()} ₽</p>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={() => openEditProductDialog(product)}
+                          disabled={product.id < 1000}
+                        >
+                          <Icon name="Edit" size={14} className="mr-1" />
+                          Изменить
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => deleteProduct(product.id)}
+                          disabled={product.id < 1000}
+                        >
+                          <Icon name="Trash2" size={14} />
+                        </Button>
+                      </div>
+                      {product.id < 1000 && (
+                        <p className="text-xs text-muted-foreground mt-2">Базовый товар (нельзя изменить)</p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-xl font-bold mb-4">Статистика</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <Icon name="Package" size={32} className="mx-auto mb-2 text-primary" />
+                    <p className="text-2xl font-bold">{allProducts.length}</p>
+                    <p className="text-sm text-muted-foreground">Товаров</p>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <Icon name="Users" size={32} className="mx-auto mb-2 text-primary" />
+                    <p className="text-2xl font-bold">{JSON.parse(localStorage.getItem('onlishop_users') || '[]').length}</p>
+                    <p className="text-sm text-muted-foreground">Пользователей</p>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <Icon name="ShoppingCart" size={32} className="mx-auto mb-2 text-primary" />
+                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-sm text-muted-foreground">Заказов</p>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <Icon name="TrendingUp" size={32} className="mx-auto mb-2 text-primary" />
+                    <p className="text-2xl font-bold">0 ₽</p>
+                    <p className="text-sm text-muted-foreground">Выручка</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-xl font-bold mb-4">Зарегистрированные пользователи</h3>
+                <div className="space-y-2">
+                  {JSON.parse(localStorage.getItem('onlishop_users') || '[]').map((u: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded">
+                      <div>
+                        <p className="font-medium">{u.name}</p>
+                        <p className="text-sm text-muted-foreground">{u.email}</p>
+                      </div>
+                      {u.phone && <p className="text-sm">{u.phone}</p>}
+                    </div>
+                  ))}
+                  {JSON.parse(localStorage.getItem('onlishop_users') || '[]').length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Пока нет зарегистрированных пользователей</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={showAdminProductDialog} onOpenChange={setShowAdminProductDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? 'Редактировать товар' : 'Добавить товар'}</DialogTitle>
+            <DialogDescription>
+              Заполните информацию о товаре
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Название товара *</Label>
+              <Input value={productName} onChange={(e) => setProductName(e.target.value)} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Цена *</Label>
+                <Input type="number" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label>Старая цена</Label>
+                <Input type="number" value={productOldPrice} onChange={(e) => setProductOldPrice(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label>URL изображения *</Label>
+              <Input value={productImage} onChange={(e) => setProductImage(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label>Бейдж (необязательно)</Label>
+              <Input value={productBadge} onChange={(e) => setProductBadge(e.target.value)} placeholder="Хит продаж, Новинка..." className="mt-1" />
+            </div>
+            <Button className="w-full" onClick={saveProduct}>
+              {editingProduct ? 'Сохранить' : 'Добавить'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
         <DialogContent className="sm:max-w-md">
