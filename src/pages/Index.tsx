@@ -716,42 +716,52 @@ const Index = () => {
   const allProducts = [...displayProducts, ...adminProducts];
 
   const renderProductCard = (product: Product) => (
-    <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
-      <div className="relative">
-        <img src={product.image} alt={product.name} className="w-full h-48 object-cover" />
+    <Card key={product.id} className="group hover:shadow-lg transition-all overflow-hidden border-0 rounded-2xl bg-white">
+      <div className="relative bg-muted">
+        <img src={product.image} alt={product.name} className="w-full h-56 object-cover" />
         {product.badge && (
-          <Badge className="absolute top-2 left-2 bg-secondary">{product.badge}</Badge>
+          <div className="absolute top-3 left-3 px-2 py-1 bg-white rounded-md text-xs font-semibold text-primary">
+            {product.badge}
+          </div>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+          className="absolute top-3 right-3 bg-white hover:bg-white shadow-sm rounded-full w-9 h-9"
           onClick={() => toggleFavorite(product.id)}
         >
           <Icon
             name="Heart"
-            size={20}
-            className={favorites.includes(product.id) ? 'fill-red-500 text-red-500' : ''}
+            size={18}
+            className={favorites.includes(product.id) ? 'fill-primary text-primary' : 'text-muted-foreground'}
           />
         </Button>
       </div>
       <div className="p-4">
-        <h3 className="font-medium text-sm mb-2 line-clamp-2 h-10">{product.name}</h3>
         <div className="flex items-center gap-1 mb-2">
-          <Icon name="Star" size={16} className="fill-yellow-400 text-yellow-400" />
-          <span className="text-sm font-medium">{product.rating}</span>
-          <span className="text-xs text-muted-foreground">({product.reviews})</span>
+          <div className="flex items-center gap-0.5 bg-yellow-50 px-1.5 py-0.5 rounded">
+            <Icon name="Star" size={14} className="fill-yellow-500 text-yellow-500" />
+            <span className="text-sm font-semibold">{product.rating}</span>
+          </div>
+          <span className="text-xs text-muted-foreground">• {product.reviews} отзывов</span>
         </div>
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-xl font-bold">{product.price.toLocaleString()} ₽</span>
+        <h3 className="font-normal text-sm mb-3 line-clamp-2 h-10 leading-5">{product.name}</h3>
+        <div className="mb-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold">{product.price.toLocaleString()} ₽</span>
+          </div>
           {product.oldPrice && (
-            <span className="text-sm text-muted-foreground line-through">
-              {product.oldPrice.toLocaleString()} ₽
-            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-muted-foreground line-through">
+                {product.oldPrice.toLocaleString()} ₽
+              </span>
+              <span className="text-xs text-green-600 font-semibold">
+                -{Math.round((1 - product.price / product.oldPrice) * 100)}%
+              </span>
+            </div>
           )}
         </div>
-        <Button className="w-full" onClick={() => addToCart(product)}>
-          <Icon name="ShoppingCart" size={18} className="mr-2" />
+        <Button className="w-full rounded-xl" size="lg" onClick={() => addToCart(product)}>
           В корзину
         </Button>
       </div>
@@ -760,50 +770,90 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground sticky top-0 z-50 shadow-md">
-        <div className="container mx-auto px-4 py-3">
+      <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
+        <div className="bg-primary">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6 text-sm text-primary-foreground">
+                <button className="hover:opacity-80">Пункты выдачи</button>
+                <button className="hover:opacity-80">Продавать на Ozon</button>
+                <button className="hover:opacity-80">Помощь</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Icon name="ShoppingBag" size={32} />
-              <h1 className="text-2xl font-bold">OnliShop</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">OZON</h1>
             </div>
             
-            <div className="flex-1 max-w-2xl">
+            <div className="flex-1 max-w-3xl">
               <div className="relative">
                 <Input
-                  placeholder="Искать товары..."
+                  placeholder="Искать на Ozon"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-white text-foreground pr-10"
+                  className="pl-12 h-12 rounded-xl border-2 focus-visible:ring-offset-0 focus-visible:ring-2"
                 />
-                <Icon name="Search" size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Icon name="Search" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setActiveTab('favorites')}
+                  className="hover:bg-secondary relative rounded-xl h-11 w-11"
+                >
+                  <Icon name="Heart" size={22} className="text-foreground" />
+                  {favorites.length > 0 && (
+                    <div className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                      {favorites.length}
+                    </div>
+                  )}
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
-                className="text-primary-foreground hover:bg-primary/90"
-                onClick={() => user ? setActiveTab('profile') : setShowAuthDialog(true)}
+                size="icon"
+                className="hover:bg-secondary relative rounded-xl h-11 w-11" 
+                onClick={() => setActiveTab('cart')}
               >
-                <Icon name="User" size={20} />
-              </Button>
-              <Button variant="ghost" className="text-primary-foreground hover:bg-primary/90 relative" onClick={() => setActiveTab('cart')}>
-                <Icon name="ShoppingCart" size={20} />
+                <Icon name="ShoppingCart" size={22} className="text-foreground" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
                     {cartCount}
-                  </span>
+                  </div>
                 )}
               </Button>
+              {user ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => setActiveTab('profile')}
+                  className="hover:bg-secondary rounded-xl"
+                >
+                  <Icon name="User" size={20} className="mr-2" />
+                  {user.name}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowAuthDialog(true)}
+                  className="rounded-xl"
+                >
+                  Войти
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      <nav className="bg-card border-b sticky top-[60px] z-40">
+      <nav className="bg-white border-b sticky top-[112px] z-40">
         <div className="container mx-auto px-4">
-          <div className="flex gap-6 overflow-x-auto py-3">
+          <div className="flex gap-2 overflow-x-auto py-3">
             {[
               { id: 'home', label: 'Главная', icon: 'Home' },
               { id: 'catalog', label: 'Каталог', icon: 'Grid3x3' },
@@ -811,15 +861,15 @@ const Index = () => {
               { id: 'favorites', label: 'Избранное', icon: 'Heart' },
               { id: 'profile', label: 'Профиль', icon: 'User' },
               { id: 'orders', label: 'Заказы', icon: 'Package' },
-              ...(isAdmin ? [{ id: 'admin', label: 'Админ-панель', icon: 'Settings' }] : []),
+              ...(isAdmin ? [{ id: 'admin', label: 'Админ', icon: 'Settings' }] : []),
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'hover:bg-secondary text-foreground'
                 }`}
               >
                 <Icon name={tab.icon as any} size={18} />
@@ -833,24 +883,24 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6">
         {activeTab === 'home' && (
           <div className="space-y-8 animate-fade-in">
-            <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 text-white">
-              <h2 className="text-4xl font-bold mb-2">Осенние скидки до 50%!</h2>
-              <p className="text-lg mb-4">Успей купить товары по выгодным ценам</p>
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-3xl p-12 text-white shadow-xl">
+              <h2 className="text-5xl font-bold mb-3">Мегараспродажа</h2>
+              <p className="text-xl mb-6 opacity-90">Скидки до 70% на тысячи товаров</p>
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 rounded-xl h-12 px-8 font-semibold">
                 Смотреть акции
               </Button>
             </div>
 
             <div>
               <h2 className="text-2xl font-bold mb-4">Категории</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 {categories.map((category) => (
                   <Card
                     key={category.name}
-                    className="p-4 hover:shadow-md transition-shadow cursor-pointer text-center"
+                    className="p-4 hover:shadow-md transition-all cursor-pointer text-center bg-white border-0 rounded-2xl"
                   >
-                    <Icon name={category.icon as any} size={32} className="mx-auto mb-2 text-primary" />
-                    <p className="text-sm font-medium">{category.name}</p>
+                    <Icon name={category.icon as any} size={28} className="mx-auto mb-2 text-primary" />
+                    <p className="text-xs font-medium">{category.name}</p>
                   </Card>
                 ))}
               </div>
@@ -858,8 +908,8 @@ const Index = () => {
 
             <div>
               <h2 className="text-2xl font-bold mb-4">Популярные товары</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {allProducts.slice(0, 8).map(renderProductCard)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {allProducts.slice(0, 10).map(renderProductCard)}
               </div>
             </div>
           </div>
@@ -868,7 +918,7 @@ const Index = () => {
         {activeTab === 'catalog' && (
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold mb-6">Каталог товаров</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {allProducts.map(renderProductCard)}
             </div>
           </div>
@@ -887,7 +937,7 @@ const Index = () => {
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-4">
                   {cart.map((item) => (
-                    <Card key={item.id} className="p-4">
+                    <Card key={item.id} className="p-4 bg-white border-0 rounded-2xl">
                       <div className="flex gap-4">
                         <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded" />
                         <div className="flex-1">
