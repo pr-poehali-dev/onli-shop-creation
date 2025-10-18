@@ -28,6 +28,18 @@ type User = {
   phone?: string;
 };
 
+type Order = {
+  id: number;
+  userId: string;
+  date: string;
+  status: 'Новый' | 'В обработке' | 'Доставляется' | 'Получен' | 'Отменен';
+  total: number;
+  items: CartItem[];
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+};
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'catalog' | 'cart' | 'favorites' | 'profile' | 'orders' | 'admin'>('home');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -47,6 +59,8 @@ const Index = () => {
   const [showAdminProductDialog, setShowAdminProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [adminProducts, setAdminProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [adminActiveTab, setAdminActiveTab] = useState<'products' | 'orders'>('products');
   
   const [productName, setProductName] = useState('');
   const [productPrice, setProductPrice] = useState('');
@@ -62,6 +76,10 @@ const Index = () => {
     const savedProducts = localStorage.getItem('onlishop_admin_products');
     if (savedProducts) {
       setAdminProducts(JSON.parse(savedProducts));
+    }
+    const savedOrders = localStorage.getItem('onlishop_orders');
+    if (savedOrders) {
+      setOrders(JSON.parse(savedOrders));
     }
   }, []);
 
@@ -902,7 +920,30 @@ const Index = () => {
                       <span>{cartTotal.toLocaleString()} ₽</span>
                     </div>
                   </div>
-                  <Button className="w-full" size="lg">
+                  <Button className="w-full" size="lg" onClick={() => {
+                    if (!user) {
+                      toast({ title: 'Войдите в аккаунт', description: 'Для оформления заказа необходимо войти', variant: 'destructive' });
+                      setShowAuthDialog(true);
+                      return;
+                    }
+                    const newOrder: Order = {
+                      id: Date.now(),
+                      userId: user.email,
+                      date: new Date().toLocaleDateString('ru-RU'),
+                      status: 'Новый',
+                      total: cartTotal,
+                      items: [...cart],
+                      customerName: user.name,
+                      customerPhone: user.phone || '',
+                      customerEmail: user.email
+                    };
+                    const updatedOrders = [...orders, newOrder];
+                    setOrders(updatedOrders);
+                    localStorage.setItem('onlishop_orders', JSON.stringify(updatedOrders));
+                    setCart([]);
+                    toast({ title: 'Заказ оформлен!', description: `Номер заказа: ${newOrder.id}` });
+                    setActiveTab('orders');
+                  }}>
                     Оформить заказ
                   </Button>
                 </Card>
@@ -1010,31 +1051,37 @@ const Index = () => {
       </main>
 
       {activeTab === 'admin' && isAdmin && (
-        <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-zinc-950 z-50 overflow-y-auto">
           <div className="container mx-auto px-4 py-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold">Админ-панель</h2>
+              <h2 className="text-3xl font-bold text-white">Админ-панель</h2>
               <Button variant="outline" onClick={() => setActiveTab('home')}>
                 <Icon name="X" size={18} className="mr-2" />
                 Закрыть
               </Button>
             </div>
 
-            <div className="grid gap-6 mb-6">
-              <Card className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold">Управление товарами</h3>
-                  <Button onClick={openAddProductDialog}>
-                    <Icon name="Plus" size={18} className="mr-2" />
-                    Добавить товар
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Tabs value={adminActiveTab} onValueChange={(v) => setAdminActiveTab(v as 'products' | 'orders')} className="mb-6">
+              <TabsList className="bg-zinc-900">
+                <TabsTrigger value="products">Товары</TabsTrigger>
+                <TabsTrigger value="orders">Заказы</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="products" className="mt-6">
+                <Card className="p-6 bg-zinc-900 border-zinc-800">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-white">Управление товарами</h3>
+                    <Button onClick={openAddProductDialog}>
+                      <Icon name="Plus" size={18} className="mr-2" />
+                      Добавить товар
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {allProducts.map((product) => (
-                    <Card key={product.id} className="p-4">
+                    <Card key={product.id} className="p-4 bg-zinc-800 border-zinc-700">
                       <img src={product.image} alt={product.name} className="w-full h-32 object-cover rounded mb-2" />
-                      <h4 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h4>
-                      <p className="text-lg font-bold mb-2">{product.price.toLocaleString()} ₽</p>
+                      <h4 className="font-medium text-sm mb-1 line-clamp-2 text-white">{product.name}</h4>
+                      <p className="text-lg font-bold mb-2 text-white">{product.price.toLocaleString()} ₽</p>
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
@@ -1060,53 +1107,94 @@ const Index = () => {
                       )}
                     </Card>
                   ))}
-                </div>
-              </Card>
+                  </div>
+                </Card>
+              </TabsContent>
 
-              <Card className="p-6">
-                <h3 className="text-xl font-bold mb-4">Статистика</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <Icon name="Package" size={32} className="mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">{allProducts.length}</p>
-                    <p className="text-sm text-muted-foreground">Товаров</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <Icon name="Users" size={32} className="mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">{JSON.parse(localStorage.getItem('onlishop_users') || '[]').length}</p>
-                    <p className="text-sm text-muted-foreground">Пользователей</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <Icon name="ShoppingCart" size={32} className="mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">0</p>
-                    <p className="text-sm text-muted-foreground">Заказов</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <Icon name="TrendingUp" size={32} className="mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">0 ₽</p>
-                    <p className="text-sm text-muted-foreground">Выручка</p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6">
-                <h3 className="text-xl font-bold mb-4">Зарегистрированные пользователи</h3>
-                <div className="space-y-2">
-                  {JSON.parse(localStorage.getItem('onlishop_users') || '[]').map((u: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded">
-                      <div>
-                        <p className="font-medium">{u.name}</p>
-                        <p className="text-sm text-muted-foreground">{u.email}</p>
-                      </div>
-                      {u.phone && <p className="text-sm">{u.phone}</p>}
+              <TabsContent value="orders" className="mt-6">
+                <Card className="p-6 bg-zinc-900 border-zinc-800">
+                  <h3 className="text-xl font-bold mb-4 text-white">Все заказы</h3>
+                  {orders.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Icon name="ShoppingBag" size={64} className="mx-auto mb-4 text-zinc-600" />
+                      <p className="text-zinc-400">Пока нет заказов</p>
                     </div>
-                  ))}
-                  {JSON.parse(localStorage.getItem('onlishop_users') || '[]').length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">Пока нет зарегистрированных пользователей</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {orders.map((order) => (
+                        <Card key={order.id} className="p-4 bg-zinc-800 border-zinc-700">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h4 className="font-bold text-lg text-white">Заказ #{order.id}</h4>
+                              <p className="text-sm text-zinc-400">{order.date}</p>
+                              <p className="text-sm text-zinc-300 mt-1">{order.customerName}</p>
+                              <p className="text-sm text-zinc-400">{order.customerEmail}</p>
+                              <p className="text-sm text-zinc-400">{order.customerPhone}</p>
+                            </div>
+                            <div className="text-right">
+                              <select 
+                                value={order.status}
+                                onChange={(e) => {
+                                  const newOrders = orders.map(o => 
+                                    o.id === order.id ? {...o, status: e.target.value as Order['status']} : o
+                                  );
+                                  setOrders(newOrders);
+                                  localStorage.setItem('onlishop_orders', JSON.stringify(newOrders));
+                                  toast({ title: 'Статус обновлен!' });
+                                }}
+                                className="px-3 py-1 rounded bg-zinc-700 text-white border border-zinc-600 text-sm"
+                              >
+                                <option value="Новый">Новый</option>
+                                <option value="В обработке">В обработке</option>
+                                <option value="Доставляется">Доставляется</option>
+                                <option value="Получен">Получен</option>
+                                <option value="Отменен">Отменен</option>
+                              </select>
+                              <p className="text-lg font-bold mt-2 text-white">{order.total.toLocaleString()} ₽</p>
+                            </div>
+                          </div>
+                          <div className="border-t border-zinc-700 pt-3 space-y-2">
+                            <p className="text-sm font-medium text-zinc-300">Товары:</p>
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-sm text-zinc-400">
+                                <span>{item.name} x{item.quantity}</span>
+                                <span>{(item.price * item.quantity).toLocaleString()} ₽</span>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
                   )}
-                </div>
-              </Card>
-            </div>
+                </Card>
+
+                <Card className="p-6 bg-zinc-900 border-zinc-800 mt-6">
+                  <h3 className="text-xl font-bold mb-4 text-white">Статистика</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-zinc-800 rounded-lg">
+                      <Icon name="Package" size={32} className="mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold text-white">{allProducts.length}</p>
+                      <p className="text-sm text-zinc-400">Товаров</p>
+                    </div>
+                    <div className="text-center p-4 bg-zinc-800 rounded-lg">
+                      <Icon name="Users" size={32} className="mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold text-white">{JSON.parse(localStorage.getItem('onlishop_users') || '[]').length}</p>
+                      <p className="text-sm text-zinc-400">Пользователей</p>
+                    </div>
+                    <div className="text-center p-4 bg-zinc-800 rounded-lg">
+                      <Icon name="ShoppingCart" size={32} className="mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold text-white">{orders.length}</p>
+                      <p className="text-sm text-zinc-400">Заказов</p>
+                    </div>
+                    <div className="text-center p-4 bg-zinc-800 rounded-lg">
+                      <Icon name="TrendingUp" size={32} className="mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold text-white">{orders.reduce((sum, o) => sum + o.total, 0).toLocaleString()} ₽</p>
+                      <p className="text-sm text-zinc-400">Выручка</p>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       )}
