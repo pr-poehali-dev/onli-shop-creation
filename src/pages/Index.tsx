@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
+import { useToast } from '@/hooks/use-toast';
 
 type Product = {
   id: number;
@@ -18,11 +22,85 @@ type Product = {
 
 type CartItem = Product & { quantity: number };
 
+type User = {
+  email: string;
+  name: string;
+  phone?: string;
+};
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'catalog' | 'cart' | 'favorites' | 'profile' | 'orders'>('home');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+  const { toast } = useToast();
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [registerName, setRegisterName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('onlishop_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const handleLogin = () => {
+    if (!loginEmail || !loginPassword) {
+      toast({ title: 'Ошибка', description: 'Заполните все поля', variant: 'destructive' });
+      return;
+    }
+    const savedUsers = JSON.parse(localStorage.getItem('onlishop_users') || '[]');
+    const foundUser = savedUsers.find((u: any) => u.email === loginEmail && u.password === loginPassword);
+    if (foundUser) {
+      const userData = { email: foundUser.email, name: foundUser.name, phone: foundUser.phone };
+      setUser(userData);
+      localStorage.setItem('onlishop_user', JSON.stringify(userData));
+      setShowAuthDialog(false);
+      toast({ title: 'Успешно!', description: `Добро пожаловать, ${foundUser.name}!` });
+      setLoginEmail('');
+      setLoginPassword('');
+    } else {
+      toast({ title: 'Ошибка', description: 'Неверный email или пароль', variant: 'destructive' });
+    }
+  };
+
+  const handleRegister = () => {
+    if (!registerName || !registerEmail || !registerPassword) {
+      toast({ title: 'Ошибка', description: 'Заполните все обязательные поля', variant: 'destructive' });
+      return;
+    }
+    const savedUsers = JSON.parse(localStorage.getItem('onlishop_users') || '[]');
+    if (savedUsers.find((u: any) => u.email === registerEmail)) {
+      toast({ title: 'Ошибка', description: 'Пользователь с таким email уже существует', variant: 'destructive' });
+      return;
+    }
+    const newUser = { email: registerEmail, password: registerPassword, name: registerName, phone: registerPhone };
+    savedUsers.push(newUser);
+    localStorage.setItem('onlishop_users', JSON.stringify(savedUsers));
+    const userData = { email: registerEmail, name: registerName, phone: registerPhone };
+    setUser(userData);
+    localStorage.setItem('onlishop_user', JSON.stringify(userData));
+    setShowAuthDialog(false);
+    toast({ title: 'Регистрация успешна!', description: `Добро пожаловать, ${registerName}!` });
+    setRegisterName('');
+    setRegisterEmail('');
+    setRegisterPassword('');
+    setRegisterPhone('');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('onlishop_user');
+    toast({ title: 'Вы вышли из аккаунта' });
+  };
 
   const categories = [
     { name: 'Электроника', icon: 'Laptop' },
@@ -180,10 +258,14 @@ const Index = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="ghost" className="text-primary-foreground hover:bg-primary/90">
+              <Button 
+                variant="ghost" 
+                className="text-primary-foreground hover:bg-primary/90"
+                onClick={() => user ? setActiveTab('profile') : setShowAuthDialog(true)}
+              >
                 <Icon name="User" size={20} />
               </Button>
-              <Button variant="ghost" className="text-primary-foreground hover:bg-primary/90 relative">
+              <Button variant="ghost" className="text-primary-foreground hover:bg-primary/90 relative" onClick={() => setActiveTab('cart')}>
                 <Icon name="ShoppingCart" size={20} />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -364,32 +446,48 @@ const Index = () => {
         {activeTab === 'profile' && (
           <div className="animate-fade-in max-w-2xl">
             <h2 className="text-2xl font-bold mb-6">Профиль</h2>
-            <Card className="p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center">
-                  <Icon name="User" size={40} className="text-primary-foreground" />
+            {!user ? (
+              <Card className="p-12 text-center">
+                <Icon name="User" size={64} className="mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-bold mb-2">Вы не авторизованы</h3>
+                <p className="text-muted-foreground mb-6">Войдите или зарегистрируйтесь, чтобы получить доступ к профилю</p>
+                <Button onClick={() => setShowAuthDialog(true)} size="lg">Войти</Button>
+              </Card>
+            ) : (
+              <Card className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center">
+                    <Icon name="User" size={40} className="text-primary-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold">{user.name}</h3>
+                    <p className="text-muted-foreground">{user.email}</p>
+                  </div>
+                  <Button variant="outline" onClick={handleLogout}>
+                    <Icon name="LogOut" size={18} className="mr-2" />
+                    Выйти
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold">Иван Петров</h3>
-                  <p className="text-muted-foreground">ivan.petrov@mail.ru</p>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Имя</Label>
+                    <Input value={user.name} onChange={(e) => setUser({...user, name: e.target.value})} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Email</Label>
+                    <Input value={user.email} disabled className="mt-1 bg-muted" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Телефон</Label>
+                    <Input value={user.phone || ''} onChange={(e) => setUser({...user, phone: e.target.value})} className="mt-1" />
+                  </div>
+                  <Button className="w-full" onClick={() => {
+                    localStorage.setItem('onlishop_user', JSON.stringify(user));
+                    toast({ title: 'Изменения сохранены!' });
+                  }}>Сохранить изменения</Button>
                 </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Имя</label>
-                  <Input defaultValue="Иван" className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Фамилия</label>
-                  <Input defaultValue="Петров" className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Телефон</label>
-                  <Input defaultValue="+7 (999) 123-45-67" className="mt-1" />
-                </div>
-                <Button className="w-full">Сохранить изменения</Button>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
         )}
 
@@ -425,6 +523,97 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Добро пожаловать в OnliShop</DialogTitle>
+            <DialogDescription>
+              Войдите в аккаунт или создайте новый
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'register')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Вход</TabsTrigger>
+              <TabsTrigger value="register">Регистрация</TabsTrigger>
+            </TabsList>
+            <TabsContent value="login" className="space-y-4">
+              <div>
+                <Label htmlFor="login-email">Email</Label>
+                <Input 
+                  id="login-email" 
+                  type="email" 
+                  placeholder="example@mail.ru" 
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="login-password">Пароль</Label>
+                <Input 
+                  id="login-password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button className="w-full" size="lg" onClick={handleLogin}>
+                Войти
+              </Button>
+            </TabsContent>
+            <TabsContent value="register" className="space-y-4">
+              <div>
+                <Label htmlFor="register-name">Имя *</Label>
+                <Input 
+                  id="register-name" 
+                  placeholder="Иван Петров" 
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="register-email">Email *</Label>
+                <Input 
+                  id="register-email" 
+                  type="email" 
+                  placeholder="example@mail.ru" 
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="register-password">Пароль *</Label>
+                <Input 
+                  id="register-password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="register-phone">Телефон</Label>
+                <Input 
+                  id="register-phone" 
+                  placeholder="+7 (999) 123-45-67" 
+                  value={registerPhone}
+                  onChange={(e) => setRegisterPhone(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button className="w-full" size="lg" onClick={handleRegister}>
+                Зарегистрироваться
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
