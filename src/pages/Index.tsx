@@ -61,6 +61,7 @@ const Index = () => {
   const [adminProducts, setAdminProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [adminActiveTab, setAdminActiveTab] = useState<'products' | 'orders'>('products');
+  const [baseProducts, setBaseProducts] = useState<Product[]>([]);
   
   const [productName, setProductName] = useState('');
   const [productPrice, setProductPrice] = useState('');
@@ -80,6 +81,10 @@ const Index = () => {
     const savedOrders = localStorage.getItem('onlishop_orders');
     if (savedOrders) {
       setOrders(JSON.parse(savedOrders));
+    }
+    const savedBaseProducts = localStorage.getItem('onlishop_base_products');
+    if (savedBaseProducts) {
+      setBaseProducts(JSON.parse(savedBaseProducts));
     }
   }, []);
 
@@ -122,24 +127,39 @@ const Index = () => {
       badge: productBadge || undefined,
     };
 
-    let updatedProducts;
     if (editingProduct) {
-      updatedProducts = adminProducts.map(p => p.id === editingProduct.id ? productData : p);
+      const isBaseProduct = editingProduct.id < 1000;
+      if (isBaseProduct) {
+        const updatedBaseProducts = baseProducts.map(p => p.id === editingProduct.id ? productData : p);
+        setBaseProducts(updatedBaseProducts);
+        localStorage.setItem('onlishop_base_products', JSON.stringify(updatedBaseProducts));
+      } else {
+        const updatedProducts = adminProducts.map(p => p.id === editingProduct.id ? productData : p);
+        setAdminProducts(updatedProducts);
+        localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
+      }
       toast({ title: 'Товар обновлён!' });
     } else {
-      updatedProducts = [...adminProducts, productData];
+      const updatedProducts = [...adminProducts, productData];
+      setAdminProducts(updatedProducts);
+      localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
       toast({ title: 'Товар добавлен!' });
     }
 
-    setAdminProducts(updatedProducts);
-    localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
     setShowAdminProductDialog(false);
   };
 
   const deleteProduct = (productId: number) => {
-    const updatedProducts = adminProducts.filter(p => p.id !== productId);
-    setAdminProducts(updatedProducts);
-    localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
+    const isBaseProduct = productId < 1000;
+    if (isBaseProduct) {
+      const updatedBaseProducts = baseProducts.filter(p => p.id !== productId);
+      setBaseProducts(updatedBaseProducts);
+      localStorage.setItem('onlishop_base_products', JSON.stringify(updatedBaseProducts));
+    } else {
+      const updatedProducts = adminProducts.filter(p => p.id !== productId);
+      setAdminProducts(updatedProducts);
+      localStorage.setItem('onlishop_admin_products', JSON.stringify(updatedProducts));
+    }
     toast({ title: 'Товар удалён' });
   };
 
@@ -692,7 +712,8 @@ const Index = () => {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const allProducts = [...products, ...adminProducts];
+  const displayProducts = baseProducts.length > 0 ? baseProducts : products;
+  const allProducts = [...displayProducts, ...adminProducts];
 
   const renderProductCard = (product: Product) => (
     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
@@ -1088,7 +1109,6 @@ const Index = () => {
                           variant="outline" 
                           className="flex-1"
                           onClick={() => openEditProductDialog(product)}
-                          disabled={product.id < 1000}
                         >
                           <Icon name="Edit" size={14} className="mr-1" />
                           Изменить
@@ -1097,14 +1117,10 @@ const Index = () => {
                           size="sm" 
                           variant="destructive"
                           onClick={() => deleteProduct(product.id)}
-                          disabled={product.id < 1000}
                         >
                           <Icon name="Trash2" size={14} />
                         </Button>
                       </div>
-                      {product.id < 1000 && (
-                        <p className="text-xs text-muted-foreground mt-2">Базовый товар (нельзя изменить)</p>
-                      )}
                     </Card>
                   ))}
                   </div>
