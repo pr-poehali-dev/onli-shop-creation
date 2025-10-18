@@ -67,8 +67,6 @@ const Index = () => {
 
   const isAdmin = user?.email === 'onlishop@mail.ru';
 
-  const allProducts = [...products, ...adminProducts];
-
   const openAddProductDialog = () => {
     setEditingProduct(null);
     setProductName('');
@@ -675,6 +673,8 @@ const Index = () => {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const allProducts = [...products, ...adminProducts];
 
   const renderProductCard = (product: Product) => (
     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
